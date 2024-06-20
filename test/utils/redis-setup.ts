@@ -1,18 +1,19 @@
 import { RedisMemoryServer } from 'redis-memory-server';
 import { RedisClientType, createClient } from 'redis';
 
-export const redisServer = new RedisMemoryServer();
+export const createTestRedisClient = async (): Promise<{
+  client: RedisClientType<any, any, any>;
+  redisServer: RedisMemoryServer;
+}> => {
+  const redisServer = new RedisMemoryServer();
 
-export const createTestRedisClient = async (): Promise<
-  RedisClientType<any, any, any>
-> => {
   const host = await redisServer.getHost();
   const port = await redisServer.getPort();
   const client = createClient({
     url: `redis://${host}:${port}/0`,
   });
   await client.connect();
-  return client;
+  return { client, redisServer };
 };
 
 // const host = await redisServer.getHost();
