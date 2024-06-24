@@ -23,10 +23,10 @@ type IResolveQu<Q extends Record<string, IResolvedQuHandler<any>>> = {
     key: K,
     payload: ExtractQuDataType<Q[K]>
   ): Promise<{ id: string }>;
-  setupConsumers<K extends keyof Q>(
-    keys?: K[],
-    autoStart?: boolean
-  ): Promise<Record<K, IQuConsumer>>;
+  startConsumers<K extends keyof Q>(options?: {
+    keys?: K[];
+    autoStart?: boolean;
+  }): Promise<Record<K, IQuConsumer>>;
   stopConsumers(): Promise<void>;
 };
 
@@ -45,7 +45,9 @@ export function defineQu<Q extends Record<string, IResolvedQuHandler<any>>>(
       const message = await sendMessage(redis, String(key), payload);
       return { id: message.id };
     },
-    async setupConsumers(keys, autoStart = true) {
+    async startConsumers(
+      { keys, autoStart = true } = { keys: undefined, autoStart: true }
+    ) {
       if (consumers)
         throw new ConsumersAlreadySetupError('Consumers already setup');
 
@@ -76,37 +78,4 @@ export function defineQu<Q extends Record<string, IResolvedQuHandler<any>>>(
       }
     },
   };
-}
-
-// Dream scenario: make this strongly typing
-
-interface MyValue {
-  value: string;
-}
-
-async function test() {
-  const client: RedisClientType = null!;
-
-  const handler = async (message: IQuMessage<MyValue>) => {
-    // empty
-    await message.ack();
-  };
-
-  const qu = defineQu(client, {
-    test: {
-      handler,
-    },
-    world: {
-      async handler(message: IQuMessage<{ world: number }>) {
-        await message.ack();
-      },
-    },
-  });
-
-  await qu.send('world', {
-    world: 0,
-  });
-
-  await qu.send('test', { value: 'Hello' }); // Ok
-  await qu.send('test', { value: 1 }); // Should fail
 }
