@@ -1,8 +1,6 @@
-import { RedisClientType } from 'redis';
 import { IQuMessage, parseRawMessage } from './message';
 import { hostname } from 'os';
-
-type RedisClient = RedisClientType<any, any, any>;
+import { RedisClient } from './qu';
 
 export interface IQuConsumer {
   name: string;
@@ -18,6 +16,7 @@ interface IConsumerOptions {
   concurrency: number;
   name?: string;
   maxIdleTime?: number;
+  maxAttempts?: number;
 }
 
 export async function createConsumer<D>(
@@ -30,7 +29,7 @@ export async function createConsumer<D>(
   const consumerName = name ?? `redqueue:${hostname()}`;
 
   try {
-    await client.xGroupCreate(key, group, '$', { MKSTREAM: true });
+    await client.xGroupCreate(key, group, '0', { MKSTREAM: true });
   } catch (error) {
     // Allow: BUSYGROUP Consumer Group name already exists
     // It simply states that we tried to create a group where one already exists.
@@ -82,7 +81,8 @@ export async function createConsumer<D>(
               handler(parseRawMessage(_client, key, group, item))
             );
           } catch (err) {
-            // Handling message failed. Requeue it (reclaim it).
+            // Handling message failed.
+            // TODO: Requeue it (reclaim it).
             console.error(
               'A message failed to be processed by your handler. You should ALWAYS catch application side errors yourself. The message will be reclaimed/requed.'
             );

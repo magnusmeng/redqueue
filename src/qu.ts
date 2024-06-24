@@ -1,7 +1,18 @@
-import { RedisClientType } from 'redis';
+import {
+  RedisClientOptions,
+  RedisClientType,
+  RedisClusterOptions,
+  RedisClusterType,
+  createClient,
+  createCluster,
+} from 'redis';
 import { ConsumersAlreadySetupError, QuNotFoundError } from './errors';
 import { IQuMessage, sendMessage } from './message';
 import { IQuConsumer, createConsumer } from './consumer';
+
+export type RedisClient =
+  | RedisClientType<any, any, any>
+  | RedisClusterType<any, any, any>;
 
 type IQuHandler<D> = (task: IQuMessage<D>) => Promise<void>;
 
@@ -25,15 +36,36 @@ type IResolveQu<Q extends Record<string, IResolvedQuHandler<any>>> = {
   ): Promise<{ id: string }>;
   startConsumers<K extends keyof Q>(options?: {
     keys?: K[];
-    autoStart?: boolean;
   }): Promise<Record<K, IQuConsumer>>;
   stopConsumers(): Promise<void>;
+  awaitConsumers(): Promise<void>;
 };
 
-export function defineQu<Q extends Record<string, IResolvedQuHandler<any>>>(
-  redis: RedisClientType<any, any, any>,
+export function defineQu<
+  Q extends Record<string, IResolvedQuHandler<any>>,
+  R extends RedisClient
+>(
+  redis:
+    | R
+    | { client: RedisClientOptions; cluster: undefined }
+    | { cluster: RedisClusterOptions; client: undefined },
   options: Q
 ): IResolveQu<Q> {
+  let client: RedisClient;
+  if (!(redis as R).duplicate) {
+    const redisConfig = redis as {
+      client?: RedisClientOptions;
+      cluster?: RedisClusterOptions;
+    };
+    if (redisConfig.client) {
+      client = createClient(redisConfig.client);
+    } else if (redisConfig.cluster) {
+      client = createCluster(redisConfig.cluster);
+    }
+  } else {
+    client = redis as R;
+  }
+
   let consumers: Record<keyof Q, IQuConsumer>;
   return {
     async send(key, payload) {
@@ -42,11 +74,14 @@ export function defineQu<Q extends Record<string, IResolvedQuHandler<any>>>(
           `key ${String(key)} was not found in configuration!`
         );
       }
-      const message = await sendMessage(redis, String(key), payload);
+      if (!client.isOpen) await client.connect();
+      const message = await sendMessage(client, String(key), payload);
       return { id: message.id };
     },
     async startConsumers(
-      { keys, autoStart = true } = { keys: undefined, autoStart: true }
+      { keys } = {
+        keys: undefined,
+      }
     ) {
       if (consumers)
         throw new ConsumersAlreadySetupError('Consumers already setup');
@@ -61,21 +96,31 @@ export function defineQu<Q extends Record<string, IResolvedQuHandler<any>>>(
       await Promise.all(
         filteredKeys.map<Promise<void>>(async key => {
           const opt = options[key];
-          const consumer = await createConsumer(redis, opt.handler, {
+          const consumer = await createConsumer(client, opt.handler, {
             key: String(key),
             group: 'redqueue',
             concurrency: opt.options?.concurrency ?? 1,
           });
-          if (autoStart) consumer.start();
+          consumer.start();
           consumers[key as keyof Q] = consumer;
         })
       );
+
       return consumers;
     },
     async stopConsumers() {
       for (const consumer of Object.values(consumers)) {
         await consumer.stop();
       }
+    },
+    async awaitConsumers() {
+      // return new Promise<any>((resolve, reject) =>
+      //   setTimeout(() => {
+      //     Promise.all(Object.values(consumers).map(c => c.await()))
+      //       .then(resolve)
+      //       .catch(reject);
+      //   }, 0)
+      // );
     },
   };
 }

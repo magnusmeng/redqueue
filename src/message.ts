@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/require-await */
-import { RedisClientType } from 'redis';
 import { version } from '../package.json';
+import { RedisClient } from './qu';
 
 interface IRawMessage extends Record<string, string> {
   readonly version: string;
@@ -17,8 +17,6 @@ export interface IQuMessage<D>
   retries: number;
   moveToDlq(): Promise<void>;
 }
-
-type RedisClient = RedisClientType<any, any, any>;
 
 export function createRawMessage<D>(payload: D): IRawMessage {
   return {

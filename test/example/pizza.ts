@@ -39,17 +39,29 @@ async function main() {
     'pizza.bake': { handler: bakePizza },
     'pizza.deliver': { handler: deliverPizza },
   });
-
+  console.log('Starting consumers');
   await qu.startConsumers();
 
-  await qu.send('pizza.order', { qty: 3 });
+  const produce = () => {
+    void qu.send('pizza.order', { qty: 3 });
+    setTimeout(() => produce(), Math.ceil(Math.random() * 10000));
+  };
+  produce();
 
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  ['SIGINT', 'SIGTERM'].forEach(signal =>
+    process.on(signal as any, () => {
+      console.log('');
+      console.log('Closing');
+      void qu.stopConsumers();
+      void client.disconnect();
+      void redisServer.stop();
+      // eslint-disable-next-line no-process-exit
+      process.exit(0);
+    })
+  );
 
-  await qu.stopConsumers();
-  await client.disconnect();
-
-  await redisServer.stop();
+  console.log('Waiting on consumers. use ctrl-c to stop.');
+  await qu.awaitConsumers();
 }
 
 void main();

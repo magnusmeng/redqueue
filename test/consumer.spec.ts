@@ -108,6 +108,8 @@ describe('consumer', () => {
   });
 
   it('should consume old messages not processed', async () => {
+    await sendMessage(client, 'test:consumer', { test: 'test1' });
+
     let received = 0;
     const consumer = await createConsumer<{ test: 'test' }>(
       client,
@@ -121,7 +123,6 @@ describe('consumer', () => {
         name: 'c1',
       }
     );
-    await sendMessage(client, 'test:consumer', { test: 'test1' });
     await sendMessage(client, 'test:consumer', { test: 'test2' });
     await sendMessage(client, 'test:consumer', { test: 'test3' });
     consumer.start();
