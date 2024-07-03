@@ -52,7 +52,7 @@
 		"typescript": "^5.5.3"
 	},
 	"release": {
-		"branches": ["main"],
+		"branches": ["main", "next"],
 		"plugins": [
 			[
 				"@semantic-release/commit-analyzer",
