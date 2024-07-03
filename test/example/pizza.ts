@@ -56,7 +56,6 @@ async function main() {
 			void qu.stopConsumers();
 			void client.disconnect();
 			void redisServer.stop();
-			// eslint-disable-next-line no-process-exit
 			process.exit(0);
 		}),
 	);
