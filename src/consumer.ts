@@ -10,7 +10,7 @@ export interface IQuConsumer {
 	isConsuming: boolean;
 }
 
-interface IConsumerOptions {
+export interface IConsumerOptions {
 	key: string;
 	group: string;
 	concurrency: number;

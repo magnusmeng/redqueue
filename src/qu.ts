@@ -11,13 +11,13 @@ import { type IQuMessage, sendMessage } from "./message";
 
 type IQuHandler<D> = (task: IQuMessage<D>) => Promise<void>;
 
-interface IQuOptions {
+export interface IQuOptions {
 	cron?: string;
 	dlq?: string;
 	concurrency?: number;
 }
 
-interface IResolvedQuHandler<D> {
+export interface IResolvedQuHandler<D> {
 	options?: IQuOptions;
 	handler: IQuHandler<D>;
 }
