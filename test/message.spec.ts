@@ -1,11 +1,18 @@
+import type RedisMemoryServer from "redis-memory-server";
 import type { RedisClient } from "../src/interfaces";
 import { createRawMessage, sendMessage } from "../src/message";
 import { createTestRedisClient } from "./utils/redis-setup";
 
 describe("message", () => {
 	let client: RedisClient;
+	let redisServer: RedisMemoryServer;
 	beforeAll(async () => {
-		({ client } = await createTestRedisClient());
+		({ client, redisServer } = await createTestRedisClient());
+	});
+
+	afterAll(async () => {
+		await client.disconnect();
+		await redisServer.stop();
 	});
 
 	it("should create a raw message", () => {

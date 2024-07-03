@@ -1,4 +1,7 @@
-import type { RedisClientType } from "redis";
+import type { RedisClientType, RedisClusterType } from "redis";
 
-// biome-ignore lint/suspicious/noExplicitAny: Allow any for this instance...
-export type RedisClient = RedisClientType<any, any, any>;
+export type RedisClient =
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	| RedisClientType<any, any, any>
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	| RedisClusterType<any, any, any>;

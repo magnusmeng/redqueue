@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
-import type { RedisClientType } from "redis";
 import { version } from "../package.json";
 import type { RedisClient } from "./interfaces";
 
@@ -27,10 +25,15 @@ export function createRawMessage<D>(payload: D): IRawMessage {
 	};
 }
 
-export function parseRawMessage<D>(raw: {
-	id: string;
-	message: Record<string, string>;
-}): IQuMessage<D> {
+export function parseRawMessage<D>(
+	client: RedisClient,
+	key: string,
+	group: string,
+	raw: {
+		id: string;
+		message: Record<string, string>;
+	},
+): IQuMessage<D> {
 	return {
 		id: raw.id,
 		payload: JSON.parse(raw.message.payload),
@@ -38,7 +41,7 @@ export function parseRawMessage<D>(raw: {
 		version: raw.message.version,
 		retries: 0, // TODO: Read the "deliveries" count from redis
 		async ack() {
-			// empty
+			await ackMessages(client, key, group, [raw.id]);
 		},
 		async moveToDlq() {
 			// empty
