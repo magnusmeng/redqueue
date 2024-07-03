@@ -12,6 +12,13 @@
 #       tags: backend security
 #       run: bundle audit
 #
+prepare-commit-msg:
+  commands:
+    commitzen:
+      interactive: true
+      run: LEFTHOOK=0 npx cz
+    env:
+      LEFTHOOK: "0"
 pre-commit:
   commands:
     check:
