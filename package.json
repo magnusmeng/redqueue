@@ -52,7 +52,10 @@
 		"typescript": "^5.5.3"
 	},
 	"release": {
-		"branches": ["main", "next"]
+		"branches": [
+			"main",
+			{ "name": "beta", "channel": "beta", "prerelease": true }
+		]
 	},
 	"config": {
 		"commitizen": {
