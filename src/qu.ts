@@ -12,7 +12,6 @@ import { type IQuMessage, sendMessage } from "./message";
 type IQuHandler<D> = (task: IQuMessage<D>) => Promise<void>;
 
 export interface IQuOptions {
-	cron?: string;
 	dlq?: string;
 	concurrency?: number;
 }
@@ -80,8 +79,9 @@ export function defineQu<
 				keys: undefined,
 			},
 		) {
-			if (consumers)
+			if (consumers) {
 				throw new ConsumersAlreadySetupError("Consumers already setup");
+			}
 
 			consumers = {} as Record<keyof Q, IQuConsumer>;
 
