@@ -3,7 +3,9 @@ import type { RedisClient } from "./interfaces";
 import { type IQuMessage, parseRawMessage } from "./message";
 
 export interface IQuConsumer {
-	name: string;
+	readonly name: string;
+	readonly group: string;
+	readonly concurrency: number;
 	stop(): Promise<void>;
 	start(): void;
 	await(): Promise<void>;
@@ -98,6 +100,8 @@ export async function createConsumer<D>(
 
 	const consumer = {
 		name: consumerName,
+		group,
+		concurrency,
 		get isConsuming() {
 			return !shouldStop;
 		},

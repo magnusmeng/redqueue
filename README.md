@@ -17,11 +17,53 @@ npm install redqueue
 
 ## Usage
 
-```ts
-import { myPackage } from "my-package-name";
+You are selling pizzas, and you can take a single order at a time. Each order contains a quantity of pizzas that needs to be baked. Your oven can hold 5 pizzas at a time.
 
-myPackage("hello");
-//=> 'hello from my package'
+The following example demonstrates how to handle this simple use-case using redqueue on two queues `pizza.ordered` and `pizza.bake`.
+
+```ts
+import { defineQu, type IQuMessage } from "redqueue";
+
+const redisOptions = ... // Some redis connection, client options or cluster options
+
+const qu = defineQu(redisOptions, {
+	"pizza.ordered": {
+		handler: async (order: IQuMessage<{ qty: number }>) => {
+			// Bake some pizzas
+			for (let i = 0; i < order.payload.qty; i++) {
+				await qu.send("pizza.bake", { topping: "cheese" });
+			}
+			await order.ack();
+		},
+		concurrency: 1, // Handle one order at a time
+	},
+	"pizza.bake": {
+		handler: async (pizza: IQuMessage<{ topping: string }>) => {
+			console.log(`Baking a ${pizza.payload.topping} pizza!`);
+			await pizza.ack();
+		},
+		concurrency: 5, // The oven can bake 5 pizzas at a time
+	},
+});
+
+async function main() {
+	// Start the consumers
+	await qu.startConsumers();
+
+	console.log("Consumers are running! Stop with ctrl-c");
+
+	// Send a pizza order each 1000ms
+	const t = setInterval(() => {
+		qu.send("pizza.ordered", { qty: 3 });
+	}, 1000);
+
+	// Await the consumers (e.g. run until they are stopped)
+	await qu.awaitConsumers();
+	clearInterval(t);
+}
+
+void main();
+
 ```
 
 ## API

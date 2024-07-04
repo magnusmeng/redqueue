@@ -14,6 +14,7 @@ type IQuHandler<D> = (task: IQuMessage<D>) => Promise<void>;
 export interface IQuOptions {
 	dlq?: string;
 	concurrency?: number;
+	group?: string;
 }
 
 export interface IResolvedQuHandler<D> {
@@ -29,6 +30,7 @@ type IResolveQu<Q extends Record<string, IResolvedQuHandler<any>>> = {
 		key: K,
 		payload: ExtractQuDataType<Q[K]>,
 	): Promise<{ id: string }>;
+	startWorker(): Promise<void>;
 	startConsumers<K extends keyof Q>(options?: {
 		keys?: K[];
 	}): Promise<Record<K, IQuConsumer>>;
@@ -41,14 +43,13 @@ export function defineQu<
 	Q extends Record<string, IResolvedQuHandler<any>>,
 	R extends RedisClient,
 >(
-	redis:
-		| R
-		| { client: RedisClientOptions; cluster: undefined }
-		| { cluster: RedisClusterOptions; client: undefined },
+	redis: R | { client: RedisClientOptions } | { cluster: RedisClusterOptions },
 	options: Q,
 ): IResolveQu<Q> {
 	let client: RedisClient;
+	let shouldCloseConnection = false;
 	if (!(redis as R).duplicate) {
+		shouldCloseConnection = true;
 		const redisConfig = redis as {
 			client?: RedisClientOptions;
 			cluster?: RedisClusterOptions;
@@ -83,6 +84,8 @@ export function defineQu<
 				throw new ConsumersAlreadySetupError("Consumers already setup");
 			}
 
+			if (!client.isOpen) await client.connect();
+
 			consumers = {} as Record<keyof Q, IQuConsumer>;
 
 			const allKeys = Object.keys(options);
@@ -90,25 +93,23 @@ export function defineQu<
 				? keys.map((k) => String(k)).filter((k) => allKeys.includes(k))
 				: allKeys;
 
-			await Promise.all(
-				filteredKeys.map<Promise<void>>(async (key) => {
-					const opt = options[key];
-					const consumer = await createConsumer(client, opt.handler, {
-						key: String(key),
-						group: "redqueue",
-						concurrency: opt.options?.concurrency ?? 1,
-					});
-					consumer.start();
-					consumers[key as keyof Q] = consumer;
-				}),
-			);
+			for (const key of filteredKeys) {
+				const opt = options[key];
+				const consumer = await createConsumer(client, opt.handler, {
+					key: String(key),
+					group: opt.options?.group ?? "redqueue",
+					concurrency: opt.options?.concurrency ?? 1,
+				});
+				consumer.start();
+				consumers[key as keyof Q] = consumer;
+			}
 
 			return consumers;
 		},
 		async stopConsumers() {
-			for (const consumer of Object.values(consumers)) {
-				await consumer.stop();
-			}
+			await Promise.all(
+				Object.values(consumers).map((consumer) => consumer.stop()),
+			);
 		},
 		async awaitConsumers() {
 			return new Promise<void>((resolve, reject) =>
@@ -118,6 +119,18 @@ export function defineQu<
 						.catch(reject);
 				}, 0),
 			);
+		},
+		async startWorker() {
+			await this.startConsumers();
+			for (const signal of ["SIGINT", "SIGTERM"] as const) {
+				process.on(signal, () => {
+					void this.stopConsumers();
+					if (shouldCloseConnection) {
+						void client.disconnect();
+					}
+				});
+			}
+			await this.awaitConsumers();
 		},
 	};
 }
