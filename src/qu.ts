@@ -111,13 +111,13 @@ export function defineQu<
 			}
 		},
 		async awaitConsumers() {
-			// return new Promise<any>((resolve, reject) =>
-			//   setTimeout(() => {
-			//     Promise.all(Object.values(consumers).map(c => c.await()))
-			//       .then(resolve)
-			//       .catch(reject);
-			//   }, 0)
-			// );
+			return new Promise<void>((resolve, reject) =>
+				setTimeout(() => {
+					Promise.all(Object.values(consumers).map((c) => c.await()))
+						.then(() => resolve())
+						.catch(reject);
+				}, 0),
+			);
 		},
 	};
 }

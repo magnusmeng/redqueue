@@ -3,6 +3,7 @@
 	"version": "0.0.0-development",
 	"description": "Fast, scalable, and reliable queues backed by Redis Streams",
 	"main": "./lib/src/index.js",
+	"types": "./lib/src/index.d.ts",
 	"files": ["lib/**/*"],
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",

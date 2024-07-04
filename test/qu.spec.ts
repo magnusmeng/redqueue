@@ -95,4 +95,21 @@ describe("Qu", () => {
 		expect(received).toBeTruthy();
 		await qu.stopConsumers();
 	});
+	it("should await consumers", async () => {
+		const qu = defineQu(client, {
+			testConsumer: {
+				handler: async (message: IQuMessage<{ test: "test" }>) => {
+					await message.ack();
+				},
+			},
+		});
+		await qu.startConsumers();
+		let awaited = false;
+		setTimeout(async () => {
+			await qu.stopConsumers();
+			awaited = true;
+		}, 100);
+		await qu.awaitConsumers();
+		expect(awaited).toBeTruthy();
+	});
 });
