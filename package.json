@@ -2,7 +2,7 @@
 	"name": "redqueue",
 	"version": "0.0.0-development",
 	"description": "Fast, scalable, and reliable queues backed by Redis Streams",
-	"main": "./lib/index.js",
+	"main": "./lib/src/index.js",
 	"files": ["lib/**/*"],
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
