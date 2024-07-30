@@ -19,6 +19,7 @@ describe("consumer", () => {
 		try {
 			await client.xGroupDestroy("test:consumer", "test-group");
 			await client.del("test:consumer");
+			await client.del("test-dlq");
 		} catch {
 			// noop
 		}
@@ -87,10 +88,11 @@ describe("consumer", () => {
 		let received = 0;
 		const consumer = await createConsumer<{ test: "test" }>(
 			client,
-			(message) => {
+			async (message) => {
 				if (message.payload.test === "test") {
 					received++;
 				}
+				await message.ack();
 			},
 			{
 				concurrency: 1,
@@ -114,8 +116,9 @@ describe("consumer", () => {
 		let received = 0;
 		const consumer = await createConsumer<{ test: "test" }>(
 			client,
-			(message) => {
+			async (message) => {
 				received++;
+				await message.ack();
 			},
 			{
 				concurrency: 1,
@@ -191,5 +194,62 @@ describe("consumer", () => {
 		await new Promise((resolve) => setTimeout(resolve, 30));
 		await consumer.stop();
 		expect(received).toBe(1);
+	});
+
+	it("should reprocess failed messages immediately", async () => {
+		let received = 0;
+		const consumer = await createConsumer<{ test: "test" }>(
+			client,
+			async (message) => {
+				received++;
+				if (received === 1) {
+					throw new Error("This should be a reason for requeuing");
+				}
+				await message.ack();
+			},
+			{
+				concurrency: 1,
+				group: "test-group",
+				key: "test:consumer",
+				name: "c1",
+			},
+		);
+
+		await sendMessage(client, "test:consumer", { test: "test" });
+		consumer.start();
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		await consumer.stop();
+		expect(received).toBe(2);
+	});
+
+	it("should reprocess failed messages maxAttempts times and move to dlq", async () => {
+		let received = 0;
+		const consumer = await createConsumer<{ test: "test" }>(
+			client,
+			async (message) => {
+				received++;
+				throw new Error("This should be a reason for requeuing");
+			},
+			{
+				concurrency: 1,
+				group: "test-group",
+				key: "test:consumer",
+				name: "c1",
+				maxAttempts: 3,
+				dlq: "test-dlq",
+			},
+		);
+
+		await sendMessage(client, "test:consumer", { test: "test" });
+		consumer.start();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		await consumer.stop();
+		expect(received).toBe(3);
+		const dlq = await client.xRead({ key: "test-dlq", id: "0" });
+		expect(dlq?.[0].messages.length).toBe(1);
+		const msg = dlq?.[0].messages[0];
+		expect(msg?.message.payload).toBeDefined();
+		expect(msg?.message.ownerKey).toBe("test:consumer");
+		expect(msg?.message.ownerGroup).toBe("test-group");
 	});
 });

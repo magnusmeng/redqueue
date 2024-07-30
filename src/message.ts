@@ -27,27 +27,44 @@ export function createRawMessage<D>(payload: D): IRawMessage {
 
 export function parseRawMessage<D>(
 	client: RedisClient,
-	key: string,
-	group: string,
 	raw: {
 		id: string;
 		message: Record<string, string>;
 	},
+	pending: {
+		millisecondsSinceLastDelivery: number;
+		deliveriesCounter: number;
+	},
+	{
+		key,
+		group,
+		consumerName,
+		dlq,
+	}: { key: string; group: string; consumerName: string; dlq: string },
 ): IQuMessage<D> {
-	return {
+	const meta = {
 		id: raw.id,
 		payload: JSON.parse(raw.message.payload),
 		producer: raw.message.producer,
 		version: raw.message.version,
-		retries: 0, // TODO: Read the "deliveries" count from redis
+		retries: pending.deliveriesCounter - 1, // TODO: Read the "deliveries" count from redis
+	};
+	return {
+		...meta,
 		async ack() {
 			await ackMessages(client, key, group, [raw.id]);
 		},
 		async moveToDlq() {
-			// empty
+			const rawMessage = createRawMessage(meta);
+			await client.xAdd(dlq, "*", {
+				...rawMessage,
+				ownerKey: key,
+				ownerGroup: group,
+			});
+			await this.ack();
 		},
 		async noack() {
-			// empty
+			await client.xClaimJustId(key, group, consumerName, 0, meta.id);
 		},
 	};
 }
