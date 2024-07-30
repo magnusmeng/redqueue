@@ -1,3 +1,10 @@
+# [1.1.0-beta.6](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.5...v1.1.0-beta.6) (2024-07-30)
+
+
+### Bug Fixes
+
+* **consumer.ts, message.ts:** fixed NOACK bug, added noack, moveToDlq, and message retries count ([a23c1c1](https://github.com/magnusmeng/redqueue/commit/a23c1c12c27f421039acaa5936cd54d62305f1ea))
+
 # [1.1.0-beta.5](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.4...v1.1.0-beta.5) (2024-07-04)
 
 
