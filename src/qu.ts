@@ -17,10 +17,14 @@ export interface IQuOptions {
 	group?: string;
 }
 
-export interface IResolvedQuHandler<D> {
+type IQuHandlerOptions<D> = {
 	options?: IQuOptions;
 	handler: IQuHandler<D>;
-}
+};
+
+export type IResolvedQuHandler<D> =
+	| IQuHandlerOptions<D>
+	| IQuHandlerOptions<D>[];
 
 type ExtractQuDataType<T> = T extends IResolvedQuHandler<infer U> ? U : never;
 
@@ -33,7 +37,7 @@ type IResolveQu<Q extends Record<string, IResolvedQuHandler<any>>> = {
 	startWorker(): Promise<void>;
 	startConsumers<K extends keyof Q>(options?: {
 		keys?: K[];
-	}): Promise<Record<K, IQuConsumer>>;
+	}): Promise<Record<K, Q[K] extends unknown[] ? IQuConsumer[] : IQuConsumer>>;
 	stopConsumers(): Promise<void>;
 	awaitConsumers(): Promise<void>;
 };
@@ -62,8 +66,11 @@ export function defineQu<
 	} else {
 		client = redis as R;
 	}
-
-	let consumers: Record<keyof Q, IQuConsumer>;
+	type IConsumerMap = Record<
+		keyof Q,
+		Q[keyof Q] extends unknown[] ? IQuConsumer[] : IQuConsumer
+	>;
+	let consumerMap: IConsumerMap;
 	return {
 		async send(key, payload) {
 			if (!Object.keys(options).includes(String(key))) {
@@ -80,41 +87,71 @@ export function defineQu<
 				keys: undefined,
 			},
 		) {
-			if (consumers) {
+			if (consumerMap) {
 				throw new ConsumersAlreadySetupError("Consumers already setup");
 			}
 
 			if (!client.isOpen) await client.connect();
 
-			consumers = {} as Record<keyof Q, IQuConsumer>;
+			consumerMap = {} as IConsumerMap;
 
 			const allKeys = Object.keys(options);
 			const filteredKeys = keys
 				? keys.map((k) => String(k)).filter((k) => allKeys.includes(k))
 				: allKeys;
 
-			for (const key of filteredKeys) {
-				const opt = options[key];
+			const startConsumer = async (
+				key: string,
+				// biome-ignore lint/suspicious/noExplicitAny: Must use any in this case
+				opt: IQuHandlerOptions<any>,
+			) => {
 				const consumer = await createConsumer(client, opt.handler, {
 					key: String(key),
 					group: opt.options?.group ?? "redqueue",
 					concurrency: opt.options?.concurrency ?? 1,
 				});
 				consumer.start();
-				consumers[key as keyof Q] = consumer;
+				return consumer;
+			};
+
+			for (const key of filteredKeys) {
+				let consumers: IQuConsumer | IQuConsumer[];
+				if (Array.isArray(options[key])) {
+					consumers = await Promise.all(
+						options[key].map((opt, i) =>
+							startConsumer(key, {
+								...opt,
+								options: {
+									...opt.options,
+									group: opt.options?.group ?? `redqueue:${i}`,
+								},
+							}),
+						),
+					);
+				} else {
+					consumers = await startConsumer(key, options[key]);
+				}
+				// biome-ignore lint/suspicious/noExplicitAny: Must use any in this case
+				consumerMap[key as keyof Q] = consumers as any;
 			}
 
-			return consumers;
+			return consumerMap;
 		},
 		async stopConsumers() {
 			await Promise.all(
-				Object.values(consumers).map((consumer) => consumer.stop()),
+				Object.values(consumerMap)
+					.flat()
+					.map((c) => c.stop()),
 			);
 		},
 		async awaitConsumers() {
 			return new Promise<void>((resolve, reject) =>
 				setTimeout(() => {
-					Promise.all(Object.values(consumers).map((c) => c.await()))
+					Promise.all(
+						Object.values(consumerMap)
+							.flat()
+							.map((c) => c.await()),
+					)
 						.then(() => resolve())
 						.catch(reject);
 				}, 0),
