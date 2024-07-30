@@ -1,3 +1,10 @@
+# [1.1.0-beta.7](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.6...v1.1.0-beta.7) (2024-07-30)
+
+
+### Features
+
+* **qu.ts:** introduce multiple consumers in own consumer groups for fan-out patterns ([76792b5](https://github.com/magnusmeng/redqueue/commit/76792b5f37e211135446963ea8b9c330a3ab395a))
+
 # [1.1.0-beta.6](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.5...v1.1.0-beta.6) (2024-07-30)
 
 
