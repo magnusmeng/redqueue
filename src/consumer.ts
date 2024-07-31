@@ -20,6 +20,7 @@ export interface IConsumerOptions {
 	maxIdleTime?: number;
 	maxAttempts?: number;
 	dlq?: string;
+	initialId?: string;
 }
 
 export async function createConsumer<D>(
@@ -33,6 +34,7 @@ export async function createConsumer<D>(
 		maxIdleTime = 600_000,
 		maxAttempts = 3,
 		dlq,
+		initialId = "0-0",
 	}: IConsumerOptions,
 ): Promise<IQuConsumer> {
 	dlq = dlq ?? `${key}:dlq`;
@@ -74,10 +76,11 @@ export async function createConsumer<D>(
 		const pending = await _client.xPendingRange(key, group, "-", "+", 1, {
 			consumer: consumerName,
 		});
+
 		const raw = await _client.xReadGroup(
 			group,
 			consumerName,
-			{ key, id: initialRead || pending.length ? "0-0" : ">" },
+			{ key, id: initialRead || pending.length ? initialId : ">" },
 			{ COUNT: concurrency, BLOCK: 2000 },
 		);
 		initialRead = false;
@@ -98,6 +101,10 @@ export async function createConsumer<D>(
 						group,
 						consumerName,
 					});
+					if (message.id < initialId) {
+						await message.ack();
+						return;
+					}
 					try {
 						// If too many retries, we move to dlq and ack
 						if (message.retries >= maxAttempts) {

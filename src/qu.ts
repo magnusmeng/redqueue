@@ -15,6 +15,7 @@ export interface IQuOptions {
 	dlq?: string;
 	concurrency?: number;
 	group?: string;
+	initialId?: string;
 }
 
 type IQuHandlerOptions<D> = {
@@ -109,6 +110,7 @@ export function defineQu<
 					key: String(key),
 					group: opt.options?.group ?? "redqueue",
 					concurrency: opt.options?.concurrency ?? 1,
+					initialId: opt.options?.initialId,
 				});
 				consumer.start();
 				return consumer;

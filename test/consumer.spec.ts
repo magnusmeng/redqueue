@@ -252,4 +252,29 @@ describe("consumer", () => {
 		expect(msg?.message.ownerKey).toBe("test:consumer");
 		expect(msg?.message.ownerGroup).toBe("test-group");
 	});
+
+	it("should consume from intitialId, and not before", async () => {
+		let received = 0;
+		await sendMessage(client, "test:consumer", { test: "test" });
+		await sendMessage(client, "test:consumer", { test: "test" });
+		await sendMessage(client, "test:consumer", { test: "test" });
+		const consumer = await createConsumer<{ test: "test" }>(
+			client,
+			async (message) => {
+				received++;
+				await message.ack();
+			},
+			{
+				concurrency: 1,
+				group: "test-group",
+				key: "test:consumer",
+				name: "c1",
+				initialId: `${Date.now() + 1000}-0`,
+			},
+		);
+		consumer.start();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		await consumer.stop();
+		expect(received).toBe(0);
+	});
 });
