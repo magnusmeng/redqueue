@@ -4,9 +4,7 @@
 	"description": "Fast, scalable, and reliable queues backed by Redis Streams",
 	"main": "./lib/src/index.js",
 	"types": "./lib/src/index.d.ts",
-	"files": [
-		"lib/**/*"
-	],
+	"files": ["lib/**/*"],
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"clean": "rm -rf ./lib/",
@@ -31,10 +29,7 @@
 	"engines": {
 		"node": ">=18.18"
 	},
-	"keywords": [
-		"redis",
-		"queue"
-	],
+	"keywords": ["redis", "queue"],
 	"bugs": {
 		"url": "https://github.com/magnusmeng/redqueue/issues"
 	},
@@ -95,10 +90,7 @@
 			[
 				"@semantic-release/git",
 				{
-					"assets": [
-						"package.json",
-						"CHANGELOG.md"
-					],
+					"assets": ["package.json", "CHANGELOG.md"],
 					"message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
 				}
 			]
