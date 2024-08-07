@@ -1,3 +1,10 @@
+# [1.1.0-beta.8](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.7...v1.1.0-beta.8) (2024-07-31)
+
+
+### Features
+
+* **qu.ts, consumer.ts:** add `initialId` to consumer options ([3216219](https://github.com/magnusmeng/redqueue/commit/321621944f6f71586d28e3dde2f61e4c769dcd8a))
+
 # [1.1.0-beta.7](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.6...v1.1.0-beta.7) (2024-07-30)
 
 
