@@ -10,7 +10,7 @@
 		"clean": "rm -rf ./lib/",
 		"cm": "cz",
 		"prepare": "lefthook install",
-		"lint": "eslint ./src/ --fix",
+		"lint": "biome check",
 		"semantic-release": "semantic-release",
 		"test:watch": "jest --watch",
 		"test": "jest --coverage",
