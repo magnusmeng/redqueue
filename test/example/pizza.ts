@@ -30,6 +30,17 @@ async function main() {
 
 	async function deliverPizza({ ack, payload }: IQuMessage<{ to: string }>) {
 		console.log(`Delivering pizza to ${payload.to}`);
+		await qu.send("pizza.payed", { price: 100 });
+		await ack();
+	}
+
+	async function bookPizza({ ack }: IQuMessage<{ price: number }>) {
+		console.log("Adding sale in books");
+		await ack();
+	}
+
+	async function sendEvalEmail({ ack }: IQuMessage<{ price: number }>) {
+		console.log("Sending a notification");
 		await ack();
 	}
 
@@ -38,13 +49,14 @@ async function main() {
 		"pizza.order": { handler: handlePizzaOrder },
 		"pizza.bake": { handler: bakePizza },
 		"pizza.deliver": { handler: deliverPizza },
+		"pizza.payed": [{ handler: bookPizza, sendEvalEmail }],
 	});
 	console.log("Starting consumers");
 	await qu.startConsumers();
 
 	const produce = () => {
 		void qu.send("pizza.order", { qty: 3 });
-		setTimeout(() => produce(), Math.ceil(Math.random() * 10000));
+		// setTimeout(() => produce(), Math.ceil(Math.random() * 10000));
 	};
 	produce();
 

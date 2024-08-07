@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - next
+      - beta
 
 permissions:
   contents: read # for checkout
@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "lts/*"
+          cache: npm
       - name: Install dependencies
         run: npm clean-install
       - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
@@ -34,4 +35,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
+        run: LEFTHOOK=0 npx semantic-release

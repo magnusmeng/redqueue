@@ -1,15 +1,16 @@
 {
 	"name": "redqueue",
-	"version": "0.0.0-development",
+	"version": "1.1.0-beta.8",
 	"description": "Fast, scalable, and reliable queues backed by Redis Streams",
-	"main": "./lib/index.js",
+	"main": "./lib/src/index.js",
+	"types": "./lib/src/index.d.ts",
 	"files": ["lib/**/*"],
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"clean": "rm -rf ./lib/",
 		"cm": "cz",
 		"prepare": "lefthook install",
-		"lint": "eslint ./src/ --fix",
+		"lint": "biome check",
 		"semantic-release": "semantic-release",
 		"test:watch": "jest --watch",
 		"test": "jest --coverage",
@@ -38,6 +39,9 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.8.3",
+		"@semantic-release/changelog": "^6.0.3",
+		"@semantic-release/exec": "^6.0.3",
+		"@semantic-release/git": "^10.0.1",
 		"@types/jest": "^29.5.12",
 		"@types/node": "^20.14.9",
 		"commitizen": "^4.3.0",
@@ -52,7 +56,45 @@
 		"typescript": "^5.5.3"
 	},
 	"release": {
-		"branches": ["main", "next"]
+		"branches": [
+			"main",
+			"+([0-9])?(.{+([0-9]),x}).x",
+			{
+				"name": "beta",
+				"channel": "beta",
+				"prerelease": true
+			}
+		],
+		"plugins": [
+			"@semantic-release/commit-analyzer",
+			"@semantic-release/release-notes-generator",
+			"@semantic-release/changelog",
+			[
+				"@semantic-release/npm",
+				{
+					"npmPublish": false
+				}
+			],
+			[
+				"@semantic-release/exec",
+				{
+					"prepareCmd": "npm run build"
+				}
+			],
+			[
+				"@semantic-release/npm",
+				{
+					"npmPublish": true
+				}
+			],
+			[
+				"@semantic-release/git",
+				{
+					"assets": ["package.json", "CHANGELOG.md"],
+					"message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+				}
+			]
+		]
 	},
 	"config": {
 		"commitizen": {

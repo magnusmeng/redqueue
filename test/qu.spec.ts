@@ -95,4 +95,129 @@ describe("Qu", () => {
 		expect(received).toBeTruthy();
 		await qu.stopConsumers();
 	});
+	it("should await consumers", async () => {
+		const qu = defineQu(client, {
+			testConsumer: {
+				handler: async (message: IQuMessage<{ test: "test" }>) => {
+					await message.ack();
+				},
+			},
+		});
+		await qu.startConsumers();
+		let awaited = false;
+		setTimeout(async () => {
+			await qu.stopConsumers();
+			awaited = true;
+		}, 100);
+		await qu.awaitConsumers();
+		expect(awaited).toBeTruthy();
+	});
+	it("should start worker and stop with SIGINT", async () => {
+		const origOn = process.on;
+		const mockCallback = jest.fn();
+		const onSpy = jest.fn((signal, cb) => {
+			if (signal === "SIGINT") {
+				mockCallback.mockImplementation(cb);
+			}
+		});
+		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+		process.on = onSpy as any;
+		try {
+			const qu = defineQu(client, {
+				testConsumer: {
+					handler: async (message: IQuMessage<{ test: "test" }>) => {
+						await message.ack();
+					},
+				},
+			});
+			const stopSpy = jest.spyOn(qu, "stopConsumers");
+			void qu.startWorker(); // Do not await as that will stall forever.
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			expect(onSpy).toHaveBeenCalledWith("SIGINT", expect.any(Function));
+			expect(onSpy).toHaveBeenCalledWith("SIGTERM", expect.any(Function));
+
+			mockCallback();
+
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			expect(stopSpy).toHaveBeenCalled();
+			await qu.awaitConsumers();
+		} finally {
+			process.on = origOn;
+		}
+	});
+	it("should work with redis client", async () => {
+		const qu = defineQu(client, {});
+		expect(qu).toBeDefined();
+	});
+	it("should work with redis config", async () => {
+		const qu = defineQu(
+			{
+				client: {
+					url: "redis://test",
+				},
+			},
+			{},
+		);
+		expect(qu).toBeDefined();
+	});
+	it("should work with redis cluster config", async () => {
+		const qu = defineQu(
+			{
+				cluster: {
+					rootNodes: [{ url: "redis://test" }],
+				},
+			},
+			{},
+		);
+		expect(qu).toBeDefined();
+	});
+	it("should open client when sending if not open", async () => {
+		const copy = client.duplicate();
+		try {
+			const spy = jest.spyOn(copy, "connect");
+			const qu = defineQu(copy, {
+				testConsumer: {
+					handler: async (message: IQuMessage<{ test: "test" }>) => {
+						await message.ack();
+					},
+				},
+			});
+			await qu.send("testConsumer", { test: "test" });
+			expect(spy).toHaveBeenCalled();
+		} finally {
+			await copy.disconnect();
+		}
+	});
+	it("should open client when consuming if not open", async () => {
+		const copy = client.duplicate();
+		const spy = jest.spyOn(copy, "connect");
+		const qu = defineQu(copy, {
+			testConsumer: {
+				handler: async (message: IQuMessage<{ test: "test" }>) => {
+					await message.ack();
+				},
+			},
+		});
+		await qu.startConsumers();
+		await qu.stopConsumers();
+		expect(spy).toHaveBeenCalled();
+		await copy.disconnect();
+	});
+	it("should setup consumer concurrency and groupName", async () => {
+		const qu = defineQu(client, {
+			testConsumer: {
+				handler: async (message: IQuMessage<{ test: "test" }>) => {
+					await message.ack();
+				},
+				options: {
+					concurrency: 2,
+					group: "test-group",
+				},
+			},
+		});
+		const consumers = await qu.startConsumers();
+		expect(consumers.testConsumer.group).toBe("test-group");
+		expect(consumers.testConsumer.concurrency).toBe(2);
+		await qu.stopConsumers();
+	});
 });
