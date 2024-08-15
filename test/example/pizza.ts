@@ -45,12 +45,24 @@ async function main() {
 	}
 
 	const { client, redisServer } = await createTestRedisClient();
-	const qu = defineQu(client, {
-		"pizza.order": { handler: handlePizzaOrder },
-		"pizza.bake": { handler: bakePizza },
-		"pizza.deliver": { handler: deliverPizza },
-		"pizza.payed": [{ handler: bookPizza, sendEvalEmail }],
-	});
+	const qu = defineQu(
+		client,
+		{
+			"pizza.order": { handler: handlePizzaOrder },
+			"pizza.bake": { handler: bakePizza },
+			"pizza.deliver": { handler: deliverPizza },
+			"pizza.payed": [{ handler: bookPizza }, { handler: sendEvalEmail }],
+			"bookings.prepare": {
+				handler: async (msg: IQuMessage) => {
+					console.log("Sending bookings from the previous day to ERP");
+					await msg.ack();
+				},
+			},
+		},
+		{
+			"bookings.prepare": { crontab: "0 02 * * *" },
+		},
+	);
 	console.log("Starting consumers");
 	await qu.startConsumers();
 

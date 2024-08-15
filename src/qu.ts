@@ -5,6 +5,7 @@ import {
 	createCluster,
 } from "redis";
 import { type IQuConsumer, createConsumer } from "./consumer";
+import { type CrontabString, type ICrontab, createCrontab } from "./crontab";
 import { ConsumersAlreadySetupError, QuNotFoundError } from "./errors";
 import type { RedisClient } from "./interfaces";
 import { type IQuMessage, sendMessage } from "./message";
@@ -16,6 +17,10 @@ export interface IQuOptions {
 	concurrency?: number;
 	group?: string;
 	initialId?: string;
+}
+
+interface ICronQuHandler {
+	crontab: CrontabString;
 }
 
 type IQuHandlerOptions<D> = {
@@ -49,7 +54,8 @@ export function defineQu<
 	R extends RedisClient,
 >(
 	redis: R | { client: RedisClientOptions } | { cluster: RedisClusterOptions },
-	options: Q,
+	handlers: Q,
+	cron?: Record<string, ICronQuHandler>,
 ): IResolveQu<Q> {
 	let client: RedisClient;
 	let shouldCloseConnection = false;
@@ -72,9 +78,10 @@ export function defineQu<
 		Q[keyof Q] extends unknown[] ? IQuConsumer[] : IQuConsumer
 	>;
 	let consumerMap: IConsumerMap;
+	let crontabs: Record<string, ICrontab>;
 	return {
 		async send(key, payload) {
-			if (!Object.keys(options).includes(String(key))) {
+			if (!Object.keys(handlers).includes(String(key))) {
 				throw new QuNotFoundError(
 					`key ${String(key)} was not found in configuration!`,
 				);
@@ -95,8 +102,20 @@ export function defineQu<
 			if (!client.isOpen) await client.connect();
 
 			consumerMap = {} as IConsumerMap;
+			crontabs = {};
+			if (cron) {
+				Object.keys(cron).forEach((name) => {
+					const opt = cron[name];
+					const crontab = createCrontab(client, {
+						key: name,
+						crontab: opt.crontab,
+					});
+					crontab.start();
+					crontabs[name] = crontab;
+				});
+			}
 
-			const allKeys = Object.keys(options);
+			const allKeys = Object.keys(handlers);
 			const filteredKeys = keys
 				? keys.map((k) => String(k)).filter((k) => allKeys.includes(k))
 				: allKeys;
@@ -118,9 +137,9 @@ export function defineQu<
 
 			for (const key of filteredKeys) {
 				let consumers: IQuConsumer | IQuConsumer[];
-				if (Array.isArray(options[key])) {
+				if (Array.isArray(handlers[key])) {
 					consumers = await Promise.all(
-						options[key].map((opt, i) =>
+						handlers[key].map((opt, i) =>
 							startConsumer(key, {
 								...opt,
 								options: {
@@ -131,7 +150,7 @@ export function defineQu<
 						),
 					);
 				} else {
-					consumers = await startConsumer(key, options[key]);
+					consumers = await startConsumer(key, handlers[key]);
 				}
 				// biome-ignore lint/suspicious/noExplicitAny: Must use any in this case
 				consumerMap[key as keyof Q] = consumers as any;
@@ -140,6 +159,7 @@ export function defineQu<
 			return consumerMap;
 		},
 		async stopConsumers() {
+			await Promise.all(Object.values(crontabs).map((tab) => tab.stop()));
 			await Promise.all(
 				Object.values(consumerMap)
 					.flat()

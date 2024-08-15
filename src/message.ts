@@ -7,7 +7,8 @@ interface IRawMessage extends Record<string, string> {
 	readonly payload: string;
 }
 
-export interface IQuMessage<D>
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+export interface IQuMessage<D = any>
 	extends Pick<IRawMessage, "producer" | "version"> {
 	id: string;
 	payload: D;

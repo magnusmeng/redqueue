@@ -220,4 +220,30 @@ describe("Qu", () => {
 		expect(consumers.testConsumer.concurrency).toBe(2);
 		await qu.stopConsumers();
 	});
+
+	it("should setup crontabs", async () => {
+		let received = 0;
+		const qu = defineQu(
+			client,
+			{
+				"test.cron": {
+					handler: async (message: IQuMessage) => {
+						++received;
+						await message.ack();
+					},
+				},
+			},
+			{
+				"test.cron": { crontab: "* * * * *" },
+			},
+		);
+		// Force a cron trigger (as it is now)
+		await client.set("test.cron:next", `${Date.now()}`);
+		await qu.startConsumers();
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		await qu.stopConsumers();
+		expect(received).toBe(1);
+	});
 });
