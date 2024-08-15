@@ -1,6 +1,6 @@
 {
 	"name": "redqueue",
-	"version": "1.1.0-beta.8",
+	"version": "1.1.0-beta.9",
 	"description": "Fast, scalable, and reliable queues backed by Redis Streams",
 	"main": "./lib/src/index.js",
 	"types": "./lib/src/index.d.ts",

@@ -1,3 +1,10 @@
+# [1.1.0-beta.9](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.8...v1.1.0-beta.9) (2024-08-15)
+
+
+### Features
+
+* **qu.ts:** support for cron triggered tasks ([795e1a0](https://github.com/magnusmeng/redqueue/commit/795e1a0a03637bfe30211e5845772c07b46bdc3a))
+
 # [1.1.0-beta.8](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.7...v1.1.0-beta.8) (2024-07-31)
 
 
