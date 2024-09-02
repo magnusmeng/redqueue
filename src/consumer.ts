@@ -21,6 +21,7 @@ export interface IConsumerOptions {
 	maxAttempts?: number;
 	dlq?: string;
 	initialId?: string;
+	blockTime?: number;
 }
 
 export async function createConsumer<D>(
@@ -33,6 +34,7 @@ export async function createConsumer<D>(
 		name,
 		maxIdleTime = 600_000,
 		maxAttempts = 3,
+		blockTime,
 		dlq,
 		initialId = "0-0",
 	}: IConsumerOptions,
@@ -81,7 +83,7 @@ export async function createConsumer<D>(
 			group,
 			consumerName,
 			{ key, id: initialRead || pending.length ? initialId : ">" },
-			{ COUNT: concurrency, BLOCK: 2000 },
+			{ COUNT: concurrency, BLOCK: blockTime ?? 2_000 },
 		);
 		initialRead = false;
 

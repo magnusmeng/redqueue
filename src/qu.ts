@@ -17,6 +17,7 @@ export interface IQuOptions {
 	concurrency?: number;
 	group?: string;
 	initialId?: string;
+	blockTime?: number;
 }
 
 interface ICronQuHandler {
@@ -130,6 +131,7 @@ export function defineQu<
 					group: opt.options?.group ?? "redqueue",
 					concurrency: opt.options?.concurrency ?? 1,
 					initialId: opt.options?.initialId,
+					blockTime: opt.options?.blockTime,
 				});
 				consumer.start();
 				return consumer;
