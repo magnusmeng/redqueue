@@ -1,3 +1,10 @@
+# [1.1.0-beta.10](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.9...v1.1.0-beta.10) (2024-09-02)
+
+
+### Features
+
+* **qu, consumer:** add blockTime to options of consumers, to allow setting the preffered block time ([8bb4602](https://github.com/magnusmeng/redqueue/commit/8bb4602632effc14ace2ea98a6da575156a3ebc7))
+
 # [1.1.0-beta.9](https://github.com/magnusmeng/redqueue/compare/v1.1.0-beta.8...v1.1.0-beta.9) (2024-08-15)
 
 
